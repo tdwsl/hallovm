@@ -1,0 +1,43 @@
+[Hallo VM]
+
+16-bit word size
+memory is word-addressable
+64kword memory, or 128kb
+16 registers, mapped to memory 0-15
+pc=r15, lr=r14
+memory mapped IO
+arithmetic, except shift right, is signed
+entry point 0x1000
+low r0,# -> r0 = r0<<8|#
+addi, lit sign extend
+nibble immediates are unsigned
+jz, jnz are relative
+addi pc,# for jump
+jl # -> pc = lr<<8|#, lr = old pc
+
+instruction format 1: IA##, IAB#, or IABC
+
+0-3  addi  addir lit   low
+4-7  add   sub   and   or
+8-b  ldr   str   ldo   sto
+c-f  jz    jnz   lt    --
+
+instruction format 2: fIRR, fIR#, or fI##
+
+0-3  shr   shl   xor   mul
+4-7  div   rem   andi  ori
+8-b  shri  shli  muli  divi
+c-f  neg   not   dec   jl
+
+system calls: store call no in memory 0x10
+
+1 - quit
+2 - print char in r1
+3 - read char to r1
+4 - open file for reading, r1=filename -> r0=fd
+5 - open file for writing, r1=filename -> r0=fd
+6 - write byte, r1=byte, r2=fd -> r0=byte wrote?
+7 - write word, r1=word, r2=fd -> r0=word wrote?
+8 - read byte, r1=fd -> r0=byte|-1
+9 - read word, r1=fd -> r0=word, r1=word read?
+
