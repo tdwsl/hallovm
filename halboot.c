@@ -656,15 +656,15 @@ int compileExpr0(short *ex, int i, int rn) {
         i = compileExpr0(ex, i-1, rn+1);
         checkLval();
         mem[nmem-1] = mem[nmem-1]&0xf0ff|rn<<8;
-        mem[nmem++] = 0x1000|(rn+2)<<8|rn<<4|1;
-        mem[nmem] = mem[nmem-2]+0x1000&0xf0ff|(rn+2)<<8; nmem++;
+        mem[nmem++] = 0x1000|14<<8|rn<<4|1;
+        mem[nmem] = mem[nmem-2]+0x1000&0xf0ff|14<<8; nmem++;
         return i;
     case MM:
         i = compileExpr0(ex, i-1, rn+1);
         checkLval();
         mem[nmem-1] = mem[nmem-1]&0xf0ff|rn<<8;
-        mem[nmem++] = 0xfe00|(rn+2)<<4|rn;
-        mem[nmem] = mem[nmem-2]+0x1000; nmem++;
+        mem[nmem++] = 0xfe00|14<<4|rn;
+        mem[nmem] = mem[nmem-2]+0x1000&0xf0ff|14<<8; nmem++;
         return i;
     case EQ:
         i = compileExpr0(ex, i-1, rn);
@@ -698,6 +698,7 @@ int compileExpr0(short *ex, int i, int rn) {
         popRegs(rn);
         return i;
     }
+    int bi;
     n = nmem;
     if(o == TERN) {
         nmem++;
@@ -707,7 +708,7 @@ int compileExpr0(short *ex, int i, int rn) {
         i = compileExpr0(ex, i, rn);
         mem[o] = 0x0f00|nmem-o-1;
         o = TERN;
-    } else i = compileExpr0(ex, i-1, rn+(o!=COM));
+    } else i = compileExpr0(ex, bi=i-1, rn+(o!=COM));
     for(int j = n; j < nmem; j++) cbuf[j-n] = mem[j];
     n = nmem - n; nmem -= n;
     rb = rn + 1;
@@ -718,8 +719,12 @@ int compileExpr0(short *ex, int i, int rn) {
         mem[nmem-1] = mem[nmem-1]&0xf0ff|rn<<8;
         l = mem[nmem-1];
         if((l&0x00f0) != 0x00d0) rb++;
-    } else i = compileExpr0(ex, i, rn);
-    for(int j = 0; j < n; j++) mem[nmem++] = cbuf[j];
+        if((l&0xf000) == 0x8000) rb++;
+        compileExpr0(ex, bi, rb);
+    } else {
+        i = compileExpr0(ex, i, rn);
+        for(int j = 0; j < n; j++) mem[nmem++] = cbuf[j];
+    }
     switch(o) {
     case P:
         if((mem[nmem-1]&0xf000) == 0x2000)
@@ -873,7 +878,6 @@ void compileStatement(tocon *con) {
         break;
     case AUTO:
         for(;;) {
-            printf("nlocals:%d\n", nlocals);
             id(con->linen[con->i], locals[nlocals++] = con->tokens[con->i]);
             if(con->tokens[con->i+1] == EQ) {
                 start = con->linen[con->i]; con->sp = 0;
