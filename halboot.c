@@ -719,7 +719,7 @@ int compileExpr0(short *ex, int i, int rn) {
         mem[nmem-1] = mem[nmem-1]&0xf0ff|rn<<8;
         l = mem[nmem-1];
         if((l&0x00f0) != 0x00d0) rb++;
-        if((l&0xf000) == 0x8000) rb++;
+        if((l&0xf000) == 0x8000) { if(rb != rn+1) rb++; rb++; }
         compileExpr0(ex, bi, rb);
     } else {
         i = compileExpr0(ex, i, rn);
@@ -775,15 +775,15 @@ int compileExpr0(short *ex, int i, int rn) {
     case EQE:
         if((mem[nmem-1]&0xf000) == 0x2000)
             mem[nmem-1] = (-mem[nmem-1])&0xff|rn<<8;
-        else mem[nmem++] = 0x4000|rn<<8|rn<<4|rb;
-        mem[nmem] = mem[nmem+1] = 0xd000|rn<<8|rn<<4|rb;
-        nmem += 2;
+        else mem[nmem++] = 0x5000|rn<<8|rn<<4|rb;
+        mem[nmem++] = 0xfd00|rn<<4|rn;
         break;
     case NOTE:
         if((mem[nmem-1]&0xf000) == 0x2000)
             mem[nmem-1] = (-mem[nmem-1])&0xff|rn<<8;
-        else mem[nmem++] = 0x4000|rn<<8|rn<<4|rb;
-        mem[nmem++] = 0xfd00|rn<<4|rb;
+        else mem[nmem++] = 0x5000|rn<<8|rn<<4|rb;
+        mem[nmem] = mem[nmem+1] = 0xfd00|rn<<4|rn;
+        nmem += 2;
         break;
     case LT:
         mem[nmem++] = 0xe000|rn<<8|rn<<4|rb;
@@ -910,12 +910,12 @@ void compileStatement(tocon *con) {
         int a = nmem++;
         compileStatement(con);
         if(con->tokens[con->i] == ELSE) {
+            mem[a] = 0xc000|nmem-a;
             con->i++;
-            int b = nmem++;
-            compileExpr(con);
-            mem[b] = 0x0f00|nmem-b;
-        }
-        mem[a] = 0xc000|nmem-a-1;
+            a = nmem++;
+            compileStatement(con);
+            mem[a] = 0x0f00|nmem-a-1;
+        } else mem[a] = 0xc000|nmem-a-1;
         return;
         }
     case WHILE:
@@ -951,8 +951,7 @@ void compileStatement(tocon *con) {
     case FOR:
         {
         expect(con, LP);
-        compileExpr(con);
-        expect(con, SEMI);
+        compileStatement(con);
         int a0 = nmem;
         compileExpr(con);
         int a1 = nmem++;
@@ -971,6 +970,8 @@ void compileStatement(tocon *con) {
         resolveBreaks(a1+1, a0);
         return;
         }
+    case SEMI:
+        return;
     default:
         con->i--;
         compileExpr(con);
