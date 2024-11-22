@@ -10,7 +10,7 @@ putn(n) {
     do putc(a[--p]+'0'); while(p);
 }
 
-main(args, argc) {
+main(argc, args) {
     putn(argc); putc('\n');
     putn(1017); putc('\n');
     putn(-22); putc('\n');
