@@ -12,8 +12,8 @@ void openFile(const char *m) {
     if(mem[1] >= MAXFDS) { mem[0] = 0; return; }
     if(fds[mem[1]]) { mem[0] = 0; return; }
     int i;
-    char buf[64];
-    for(i = 0; i < 63 && mem[mem[2]+i]; i++)
+    char buf[80];
+    for(i = 0; i < 79 && mem[mem[2]+i]; i++)
         buf[i] = mem[mem[2]+i];
     buf[i++] = 0;
     fds[mem[1]] = fopen(buf, m);
@@ -34,8 +34,8 @@ void run() {
         unsigned char a = (ins>>8)&0xf, b = (ins>>4)&0xf, c = ins&0xf;
         char m = ins;
 
-        //printf("%.4x\n", mem[15]-1);
-        /*for(int i = 0; i < 15; i++) {
+        /*printf("%.4x\n", mem[15]-1);
+        for(int i = 0; i < 15; i++) {
             if(mem[i] != prev[i]) printf("%d=%.4x ", i, mem[i]);
             prev[i] = mem[i];
         }

@@ -372,7 +372,8 @@ void parsePre(tocon *con) {
                 errr(con->linen[con->i]); printf("expected closing )\n"); exit(1);
             }
             con->i++;
-        } else con->stack[con->sp++] = con->tokens[con->i++];
+        } else if(con->tokens[con->i] < NDEF) return;
+        else con->stack[con->sp++] = con->tokens[con->i++];
         parsePost(con);
     }
 }
@@ -419,7 +420,7 @@ void parseComma(tocon *con) {
 
 void parseExpr(tocon *con) {
     con->sp = 0;
-    parseComma(con);
+    if(con->tokens[con->i] != SEMI) parseComma(con);
 }
 
 int hex(char *s, int *n) {
@@ -535,12 +536,12 @@ void popRegs(int rn) {
 
 int compileExpr0(short *ex, int i, int rn);
 
-int compileCall(short *ex, int i) {
-    i = compileExpr0(ex, i, 0);
+int compileCall(short *ex, int i, int rn) {
+    i = compileExpr0(ex, i, rn);
     if((mem[nmem-2]&0xff00) == LIT) mem[nmem-2] = CALL|mem[nmem-2]&0xff;
-    else if((mem[nmem-2]&0xff00) == 0x2000
-            && (mem[nmem-1]&0xff00) == 0x3000) {
-        mem[nmem-2] = mem[nmem-2]|0x0e00;
+    else if((mem[nmem-2]&0xff00) == (0x2000|rn<<8)
+            && (mem[nmem-1]&0xff00) == (0x3000|rn<<8)) {
+        mem[nmem-2] = mem[nmem-2]&0xf0ff|0x0e00;
         mem[nmem-1] = mem[nmem-1]&0x00ff|0xff00;
     } else if((mem[nmem-1]&0xf000) == 0x8000 || (mem[nmem-1]&0xf000) == 0xa000) {
         mem[nmem] = mem[nmem-1]|0x0f00;
@@ -601,7 +602,7 @@ int compileExpr0(short *ex, int i, int rn) {
                 mem[nmem++] = 0xa000|rn<<8|rn<<4;
             }
         } else {
-            struct global *g = &globals[nglobals++];
+            struct global *g = &globals[n = nglobals++];
             g->sym = o;
             g->a = 0;
             mem[nmem++] = LIT|(n>>8)&0xff;
@@ -685,17 +686,26 @@ int compileExpr0(short *ex, int i, int rn) {
         return i;
     case RP:
         pushRegs(rn);
-        i = compileCall(ex, i-1);
+        i = compileCall(ex, i-1, 0);
         popRegs(rn);
         return i;
     case LP:
+        {
         pushRegs(rn);
         n = 1;
         while(ex[--i-1] == COM) n++;
-        while(n--) i = compileExpr0(ex, i, n);
-        i = compileCall(ex, i);
+        int exi[16], nstrs = nstrings, m0 = nmem;
+        for(int j = n-1; j >= 0; j--) {
+            exi[j] = i;
+            i = compileExpr0(ex, i, j);
+        }
+        nstrings = nstrs; nmem = m0;
+        for(int j = 0; j < n; j++)
+            compileExpr0(ex, exi[j], j);
+        i = compileCall(ex, i, n);
         popRegs(rn);
         return i;
+        }
     }
     int bi;
     n = nmem;
@@ -943,6 +953,7 @@ void compileStatement(tocon *con) {
         compileExpr(con);
         int a1 = nmem++;
         expect(con, SEMI);
+        if(a1 == a0) nmem--;
         int i0 = con->i;
         parseExpr(con);
         expect(con, RP);
@@ -953,7 +964,7 @@ void compileStatement(tocon *con) {
         compileExpr(con);
         con->i = i1;
         mem[nmem] = 0x0f00|(a0-nmem-1)&0xff; nmem++;
-        mem[a1] = 0xc000|nmem-a1-1;
+        if(a1 != a0) mem[a1] = 0xc000|nmem-a1-1;
         resolveBreaks(a1+1, a0);
         return;
         }
@@ -1077,7 +1088,6 @@ void compileGlobal(tocon *con) {
         mem[g->a] = data; data += n;
     } else {
         parseExpr(con);
-        printf("%s\n", symbol(con->stack[con->sp-1]));
         if(con->stack[con->sp-1] == COM) {
             mem[g->a] = nmem++;
             while(con->stack[--con->sp] == COM) nmem++;
