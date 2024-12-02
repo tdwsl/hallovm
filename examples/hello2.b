@@ -1,3 +1,4 @@
+/* print numbers */
 
 putc(c) {
     sys(2, c);

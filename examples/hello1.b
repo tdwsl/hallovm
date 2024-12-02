@@ -1,3 +1,4 @@
+/* print out a program's args */
 
 puts(s) {
     while(*s) sys(2, *s++);

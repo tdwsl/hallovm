@@ -105,7 +105,7 @@ void run() {
                 else mem[1] = 0;
                 break;
             case 10:
-                if(validFile && !fclose(fds[mem[1]])) {
+                if(validFile() && !fclose(fds[mem[1]])) {
                     mem[0] = 1; fds[mem[1]] = 0;
                 } else mem[0] = 0;
                 break;

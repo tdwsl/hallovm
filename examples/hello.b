@@ -1,5 +1,6 @@
+/* hello world */
 
-puts(s) {
+puts(s) { /* see also: put.b, printf.b */
     while(*s) sys(2, *s++);
 }
 
