@@ -543,7 +543,7 @@ int compileCall(short *ex, int i) {
         mem[nmem-2] = mem[nmem-2]|0x0e00;
         mem[nmem-1] = mem[nmem-1]&0x00ff|0xff00;
     } else if((mem[nmem-1]&0xf000) == 0x8000 || (mem[nmem-1]&0xf000) == 0xa000) {
-        mem[nmem] = mem[nmem-1]|0x0e00;
+        mem[nmem] = mem[nmem-1]|0x0f00;
         mem[nmem++-1] = 0x1ef1;
     } else {
         mem[nmem++] = 0x1ef1;
@@ -567,7 +567,6 @@ int compileExpr0(short *ex, int i, int rn) {
     short cbuf[20];
     if(!i) return 0;
     if((o = reduceExp(ex, i, &n)) != i) {
-        printf("rn:%d\n", rn);
         if(n >= -128 && n <= 127)
             mem[nmem++] = 0x2000|rn<<8|n&0xff;
         else {
@@ -587,11 +586,11 @@ int compileExpr0(short *ex, int i, int rn) {
         } else if((n = findGlobal(o)) != -1) {
             struct global *g = &globals[n];
             if(g->a < -1) {
-                mem[nmem++] = 0x2000|rn<<8|(-g->a>>8)&0xff;
+                mem[nmem++] = 0x2000|rn<<8|-g->a>>8&0xff;
                 mem[nmem++] = 0x3000|rn<<8|-g->a&0xff;
             } else if(g->a > 0) {
-                mem[nmem++] = 0x2000|rn<<8|(-g->a>>8)&0xff;
-                mem[nmem++] = 0x3000|rn<<8|-g->a&0xff;
+                mem[nmem++] = 0x2000|rn<<8|g->a>>8&0xff;
+                mem[nmem++] = 0x3000|rn<<8|g->a&0xff;
                 mem[nmem++] = 0xa000|rn<<8|rn<<4;
             } else if(g->a) {
                 mem[nmem++] = LIT|(n>>8)&0xff;
@@ -809,21 +808,9 @@ int compileExpr0(short *ex, int i, int rn) {
     return i;
 }
 
-void printStack(tocon *con) {
-    printf("ex:");
-    for(int i = 0; i < con->sp; i++) printf(" %s", symbol(con->stack[i]));
-    printf("\n");
-    int n;
-    printf("reduce: ");
-    if(reduceExp(con->stack, con->sp, &n) != con->sp) printf("%d", n);
-    else printf("no");
-    printf("\n\n");
-}
-
 void compileExpr(tocon *con) {
     start = con->linen[con->i];
     parseExpr(con);
-    printStack(con);
     compileExpr0(con->stack, con->sp, 0);
 }
 
@@ -873,9 +860,9 @@ void compileStatement(tocon *con) {
         return;
         }
     case RETURN:
-        compileExpr(con);
+        compileStatement(con);
         mem[nmem++] = RET;
-        break;
+        return;
     case AUTO:
         for(;;) {
             id(con->linen[con->i], locals[nlocals++] = con->tokens[con->i]);
@@ -999,12 +986,9 @@ void compileFunction(tocon *con, struct global *g) {
             expect(con, COM);
         }
     con->i++;
+    nstrings = 0;
     maxlocals = nlocals;
     dim = maxdim = 0;
-    nstrings = 0;
-    printf("locals are:");
-    for(int i = 0; i < nlocals; i++) printf(" %s", symbol(locals[i]));
-    printf("\n");
     int a0 = nmem;
     mem[nmem++] = 0;
     mem[nmem++] = 0xbed0;
@@ -1022,10 +1006,18 @@ void compileFunction(tocon *con, struct global *g) {
     }
     mem[nmem++] = 0xaed0;
     maxlocals += maxdim;
-    //if(maxlocals) {
+    if(maxlocals <= 128) {
         mem[a0] = 0x0d00|-maxlocals&0xff;
         mem[nmem++] = 0x0d00|maxlocals;
-    //}
+    } else {
+        scooch(a0, 2);
+        mem[a0] = 0x2c00|maxlocals>>8;
+        mem[a0+1] = 0x3c00|maxlocals&0xff;
+        mem[a0+2] = 0x5ddc;
+        mem[nmem++] = mem[a0];
+        mem[nmem++] = mem[a0+1];
+        mem[nmem++] = 0x4ddc;
+    }
     mem[nmem++] = 0x1fe0;
     for(int i = -g->a; i < nmem; i++)
         if(mem[i] == STR) {
@@ -1090,12 +1082,11 @@ void compileGlobal(tocon *con) {
             mem[g->a] = nmem++;
             while(con->stack[--con->sp] == COM) nmem++;
             i = ++con->sp;
-            printStack(con);
             j = nmem-1;
             do {
                 if(symbol(con->stack[i-1])[0] == '"') {
                     mem[j] = nmem;
-                    compileString(symbol(con->stack[--i])+1);
+                    compileString(symbol(con->stack[i-1])+1);
                 } else {
                     int i0 = i;
                     if((i = reduceExp(con->stack, i, &n)) == i0) {
@@ -1132,12 +1123,6 @@ void compileFile(char *filename) {
     for(;;) {
         ntokens = parseTokens(fp, buf, con.tokens, con.linen);
         if(!ntokens) break;
-        printf("%d %s", con.linen[0], symbol(con.tokens[0]));
-        for(int i = 1; i < ntokens; i++) {
-            if(con.linen[i] != con.linen[i-1]) printf("\n%d", con.linen[i]);
-            printf(" %s", symbol(con.tokens[i]));
-        }
-        printf("\n\n");
         con.i = 0;
         compileGlobal(&con);
     }
@@ -1175,6 +1160,7 @@ void saveFile(char *filename) {
     FILE *fp = openFile(filename, "wb");
     fwrite(_mem, 2, nmem-ORG, fp);
     fclose(fp);
+    printf("successfully compiled %d words\n", nmem-ORG);
 }
 
 /* MAIN */

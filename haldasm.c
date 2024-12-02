@@ -41,7 +41,7 @@ void dasm(char *filename) {
         } else {
             printf("%s ", ins1[a]);
             if(a >= 6 && a <= 0xb) printf("r%d,%d", b, c);
-            else if(a == 0xf) printf("0x%.2x (0x%.4x)", m, (p<<8|m&0xff)&0xffff);
+            else if(a == 0xf) printf("0x%.2x (0x%.4x)", m&0xff, (p<<8|m&0xff)&0xffff);
             else printf("r%d,r%d", b, c);
         }
         printf("\n");
