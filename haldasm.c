@@ -24,6 +24,7 @@ void dasm(char *filename) {
         o = i>>12;
         printf("%.4X %.4X %c ", pc++, i, (i>32 && i<127) ? i : '.');
         if((i&0xff00) == 0x0f00) printf("jmp 0x%.4x", pc+m);
+        else if(i == 0x1fe0) printf("jmp r14\n");
         else if(o != 0xf) {
             printf("%s ", ins0[o]);
             switch(o) {

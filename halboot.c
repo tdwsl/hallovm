@@ -527,7 +527,6 @@ void pushRegs(int rn) {
 
 void popRegs(int rn) {
     if(!rn) return;
-    mem[nmem++] = rn<<8;
     for(int i = 0; i < rn; i++)
         mem[nmem++] = 0xa0d0|rn<<8;
     mem[nmem++] = 0x0d00|rn;
@@ -1170,6 +1169,10 @@ void saveFile(char *filename) {
     FILE *fp = openFile(filename, "wb");
     fwrite(_mem, 2, nmem-ORG, fp);
     fclose(fp);
+    for(int i = 0; i < nglobals; i++) {
+        struct global *g = &globals[i];
+        if(g->a < 0) printf("%.4X %s\n", -g->a, symbol(g->sym));
+    }
     printf("successfully compiled %d words\n", nmem-ORG);
 }
 

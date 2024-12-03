@@ -34,12 +34,14 @@ void run() {
         unsigned char a = (ins>>8)&0xf, b = (ins>>4)&0xf, c = ins&0xf;
         char m = ins;
 
-        /*printf("%.4x\n", mem[15]-1);
-        for(int i = 0; i < 15; i++) {
-            if(mem[i] != prev[i]) printf("%d=%.4x ", i, mem[i]);
-            prev[i] = mem[i];
+        if(mem[0x69]) {
+            printf("%.4x\n", mem[15]-1);
+            for(int i = 0; i < 15; i++) {
+                if(mem[i] != prev[i]) printf("%d=%.4x ", i, mem[i]);
+                prev[i] = mem[i];
+            }
+            printf("\n");
         }
-        printf("\n");*/
 
         switch(ins>>12) {
         case 0: mem[a] += m; break;
